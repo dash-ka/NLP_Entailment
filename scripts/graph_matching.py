@@ -303,7 +303,7 @@ def score(idx_h, idx_t, H_tree, T_tree):
     return  common_features 
 
 
-class GraphMatch():
+class GraphMatch:
     
     def __init__(self, premise_graph, hypothesis_graph):
 
@@ -319,7 +319,7 @@ class GraphMatch():
         for idx_t in self.T_graph_traversal:
             self.T_graph.nodes[idx_t]["M"] = None
             
-    def match(self):
+    def graph_match(self):
         prev_mapping, self.mapping = [], []
         for h in self.H_graph_traversal:
             match_scores = np.array(
