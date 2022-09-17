@@ -1,1 +1,1 @@
-# Entailment Generation system 
+# Deep Learning for Textual Entailment Generation.
