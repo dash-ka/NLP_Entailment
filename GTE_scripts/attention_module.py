@@ -1,3 +1,7 @@
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
 class GlobalAttention(nn.Module):
     """
     Global attention takes a matrix and a query vector. It
