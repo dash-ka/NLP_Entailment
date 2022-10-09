@@ -1,6 +1,9 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from encoder import EncoderRNN
+from decoder import DecoderRNN, DecoderLuong, DecoderBahdanau
+
 
 class Seq2Seq(nn.Module):
     
