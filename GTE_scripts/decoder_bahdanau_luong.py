@@ -1,3 +1,7 @@
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
 class DecoderRNN(nn.Module):
     
     def __init__(self, embedding_matrix_size, hidden_size, 
