@@ -22,12 +22,21 @@ class Seq2Seq(nn.Module):
                                hidden_size//2,
                                n_layers,
                                dropout)
-        self.decoder = DecoderLuong(pretrained_w2v.size(),
+        if attn_type == "luong":
+            self.decoder = DecoderLuong(pretrained_w2v.size(),
                                hidden_size,
                                n_layers,
                                attn_type=attn_type,
                                attn_func=attn_func,
                                dropout=dropout)
+        else:
+            self.decoder = DecoderBahdanau(pretrained_w2v.size(),
+                               hidden_size,
+                               n_layers,
+                               attn_type=attn_type,
+                               attn_func=attn_func,
+                               dropout=dropout)
+            
         self.dropout = nn.Dropout(dropout)
         
     def forward(self, prem, hypo, prem_lengths, hypo_lengths):
