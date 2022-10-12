@@ -193,7 +193,7 @@ def evaluate(model, vocab, dev_data, criterion, device):
 
 
 
-def predict(premise, model, device, max_len=20):
+def predict(premise, model, voc, device, max_len=20):
     
     input_word = torch.tensor([voc.vocabulary["<sos>"]]).view(1, -1).to(device)
     prem = voc.sentence2tensor(premise).view(1, -1).to(device)
