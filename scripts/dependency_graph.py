@@ -135,7 +135,7 @@ def generate_graph(nlp_sentence,
     Token.set_extension("idx_list", default=None, force=True)
     Token.set_extension("folded", default=None, force=True)
     
-    nlp_traversal = tree_postorder(nlp_sentence)
+    nlp_traversal = spacy_postorder(nlp_sentence)
     
     G = nx.DiGraph()
     for token in nlp_traversal:
