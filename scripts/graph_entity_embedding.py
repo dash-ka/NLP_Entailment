@@ -274,8 +274,6 @@ def draw_graph(G, ax=None):
 
 
 
-
-
 class EntityEmbedding():
     
     def __init__(self, tokenizer, model, entity_pos=["NOUN", "PROPN"]):
@@ -292,10 +290,15 @@ class EntityEmbedding():
         self.tokenizer = tokenizer
         self.model = model
         
+        
     def standardize_text(self, text):
+        """ Standardize the raw text, removing noisy symbols."""
         return " ".join([re.sub(r"([-+*/#%&\\_@*)(\[\]])", r"", word) for word in text.split()])
+    
 
     def check_spacy_alignment(self, tokens):
+        """ Verify if the spacy parsed sentence aligns with the Bart tokenized sequence."""
+        
         sequence = re.sub(r"([;:,.!?])", r" \1", re.sub("Ġ", " ", ("".join(tokens))))
         try:
             assert len(sequence.split()) == len(nlp(sequence))
@@ -303,9 +306,10 @@ class EntityEmbedding():
             print("Number of tokens in the sequence does not match with Spacy parsed sentence!")
             print("Sequence lenght:", len(sequence.split()), " Spacy-parsed length:",len(nlp(sequence)))
             
+            
+            
     def word_id2tok_id(self, tokens):
-        
-        """ Map words ids to token ids produced with BartTokenizer"""
+        """ Map words to token_ids output from BartTokenizer"""
         
         map_tokens = defaultdict(list)
         map_tokens[0].append(0)
@@ -317,9 +321,11 @@ class EntityEmbedding():
         return map_tokens
     
         
+        
     def node_embeddings(self, G, tokens, encoder_hiddens):
         
-        """ Use word2token map to retieve all token embeddings 
+        """ 
+        Use word2token map to retrieve token embeddings 
             associated with a given entity node.
             
         Args:
@@ -342,6 +348,7 @@ class EntityEmbedding():
         return embeddings_dictionary
 
     
+    
     def get_entity_embeddings(self, sequence):
         
         """
@@ -351,8 +358,8 @@ class EntityEmbedding():
              G (networkx graph object): entity relation graph 
              entity_embeddings (dict): dictionary of entities with associated token embeddings
              average_node_embedding (FloatTensor):average of token embeddings representing the entity
-        
         """
+        
         sequence = self.standardize_text(sequence)
         tokens = self.tokenizer.tokenize(sequence)
         input_dict = self.tokenizer(sequence, return_tensors="pt")
