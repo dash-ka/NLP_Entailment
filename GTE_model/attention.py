@@ -20,7 +20,7 @@ class GlobalAttention(nn.Module):
        * :math:`\text{score}(H_j, q) = v_a^T \text{tanh}(W_a q + U_a h_j)`
     Args:
        dim (int): dimensionality of query and key
-       attn_func (str): type of attention to use, options [dot, general,mlp]
+       attn_func (str): type of attention to use, options [dot, general, mlp]
     """
 
     def __init__(self, dim, attn_func):
@@ -51,7 +51,7 @@ class GlobalAttention(nn.Module):
         if self.attn_func in ["general", "dot"]:
             if self.attn_func == "general":
                 h_t = self.proj_query(h_t)
-            # (batch, t_len, d) x (batch, d, s_len) --> (batch, t_len, s_len)
+            # (batch, hypo_len, dim) x (batch, dim, prem_len) --> (batch, hypo_len, prem_len)
             annotations = annotations.transpose(1, 2).contiguous()
             return torch.bmm(h_t, annotations)
         else:
@@ -70,7 +70,7 @@ class GlobalAttention(nn.Module):
         Returns:
           (FloatTensor, FloatTensor):
           * Context vector c_t ``(batch, hypo_len, dim)``
-          * Attention distribtutions for each query alpha ``(batch, (?), prem_len)``
+          * Attention distribution over source for each query ``(batch, hypo_len, prem_len)``
         """
 
         # one step input
@@ -89,7 +89,7 @@ class GlobalAttention(nn.Module):
             align.masked_fill_(~mask_prem, -float("inf"))
         alpha = F.softmax(align, dim=-1) #(batch_size, hypo_len, prem_len)
         # each context vector c_t is the weighted average
-        # over all the source hidden states
+        # over all the source hidden states 
         c_t = torch.bmm(alpha, enc_outputs)
         
         if one_step:
