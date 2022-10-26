@@ -58,8 +58,9 @@ class JointDataset(Dataset):
                  .loc[["entailment"], ["sentence1", "sentence2"]].dropna())
             
         data = pd.concat(datasets, ignore_index=True)
-        
+       
         return cls(data)
+    
     
     
 class Vocabulary:
@@ -67,6 +68,7 @@ class Vocabulary:
     def __init__(self, vocabulary, pretrained_vectors):
         self.vocabulary = vocabulary
         self.pretrained = pretrained_vectors
+    
     
     @staticmethod 
     def yield_tokens(data_iterator):
@@ -79,9 +81,10 @@ class Vocabulary:
         list of tokens
         
         """
-        
+   
         for row in data_iterator:
             yield word_tokenizer(" ".join(row))
+            
             
     @staticmethod
     def get_n_freq_w2v(wv, n_most_freq=20000):
@@ -96,7 +99,6 @@ class Vocabulary:
         freq_words (list): n most frequent words from Word2Vec
         word_vectors (torch.FloatTensor) with shape (n_most_freq, 300)
         """ 
-        
         regex = "[^a-zA-Z0-9']+"
         pattern = re.compile(regex)
         
@@ -118,6 +120,7 @@ class Vocabulary:
                 break
                 
         return freq_words, torch.stack(word_vectors)
+    
     
     @classmethod
     def build_vocabulary(cls, data, wv=None, min_freq=1, n_most_freq =10000):
@@ -143,7 +146,7 @@ class Vocabulary:
                               specials = ["<unk>", "<sos>", "<eos>"], special_first=False)
             pretrained.set_default_index(pretrained["<unk>"])
             
-            # extend the vocabulary with top most frequent words with pretrained vectors
+            # extend vocabulary with n most frequent words with pretrained vectors
             idx = len(pretrained)
             for token in vocabulary.get_stoi():
                 if pretrained[token] == pretrained["<unk>"]: #50000
@@ -152,6 +155,7 @@ class Vocabulary:
             vocabulary = pretrained
             
         return cls(vocabulary, word_vectors) # return an instance of the class
+    
     
 
     def sentence2tensor(self, sentence):
@@ -169,6 +173,9 @@ class Vocabulary:
         indices = [self.vocabulary[word] for word in word_tokenizer(sentence)]
         indices.append(self.vocabulary["<eos>"])
         return torch.tensor(indices)
+    
+    
+    
     
 def word_tokenizer(text):
     """ Minimal sentence cleaning and tokenization."""
@@ -221,6 +228,7 @@ class Seq2Seq(nn.Module):
         self.device = device
         
         
+        
     def embed_sentence(self, sentence):
         
         """ 
@@ -248,6 +256,7 @@ class Seq2Seq(nn.Module):
         emb_sent[embedding_mask] = non_pretrained_embed[embedding_mask]
         
         return emb_sent 
+        
         
     def forward(self, prem, hypo, prem_lengths, hypo_lengths):
         
