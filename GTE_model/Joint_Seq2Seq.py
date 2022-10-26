@@ -10,9 +10,8 @@ from string import punctuation
 from tqdm.notebook import tqdm
 from collections import OrderedDict
 
-from torchtext.vocab import vocab
+from torchtext.vocab import vocab, build_vocab_from_iterator
 from torchtext.data.utils import get_tokenizer
-from torchtext.vocab import build_vocab_from_iterator
 from torch.utils.data import Dataset, DataLoader
 
 
