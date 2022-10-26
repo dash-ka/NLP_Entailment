@@ -190,6 +190,31 @@ def word_tokenizer(text):
 
 class Seq2Seq(nn.Module):
     
+    """
+    Seq2Seq model.
+    It internally implements sentences embedding and forward pass.
+    The ``embed_sentence`` function extracts the embeddings from 2 embedding layers, 
+    the ``pretrained_embedding`` is a look_up table holding pretrained w2v vectors. It remains frezzed during training,
+    while the ``trainable_embedding`` holds embeddings for vocabulary terms without a pretrained representation.
+    The latter will be learned during training.
+    
+    Args:
+        oov_size(int): number of words in vocabulary without pretrained w2v vector
+        vocab_size(int): total number of word in vocabulary
+        pretrained_w2v(FloatTensor): embedding matrix with pretrained vector representations
+        ``(num_pretrained_words, 300)``
+        hidden_size(int): dimention of enc/dec hidden representation
+        n_layers: number of layers in encoder and decoder
+        device: device
+        attn_type(str): either "luong" or "bahdanau" attention architecture
+        attn_func(str): a string telling how attention score is computed : 
+         - "mlp" = multilayer perceptron
+         - "general" = projects query vector with a linear layer
+         - "dot" = simple dot product between query and keys
+         dropout(float): dropout fraction
+       
+    """
+    
     def __init__(self, oov_size, vocab_size,
                  pretrained_w2v,
                  hidden_size,
