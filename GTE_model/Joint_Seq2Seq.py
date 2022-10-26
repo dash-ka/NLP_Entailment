@@ -5,7 +5,8 @@ from encoder import EncoderRNN
 from decoder import *
 
 import pandas as pd
-import re, time, copy
+import numpy as np
+import re, time, copy, random
 from string import punctuation
 from tqdm.notebook import tqdm
 from collections import OrderedDict
@@ -45,6 +46,7 @@ class JointDataset(Dataset):
             
             # load Multi genre NLI dataset
             if "multinli" in path:
+                print("Loading MultiNLI dataset.")
                 mnli = pd.read_table(path, delimiter ="\t",on_bad_lines='skip', index_col = "gold_label")\
                  .loc[["entailment"], ["sentence1", "sentence2", "genre"]].dropna()
                 # filter out examples from "telephone" and erroneous genre  
@@ -53,6 +55,7 @@ class JointDataset(Dataset):
                 
             # Load SNLI dataset
             if "snli" in path:
+                print("Loading SNLI dataset.")
                 datasets.append(pd.read_table(path, delimiter ="\t", index_col = "gold_label")\
                  .loc[["entailment"], ["sentence1", "sentence2"]].dropna())
             
@@ -104,7 +107,7 @@ class Vocabulary:
         freq_words = ["<pad>"]
         word_vectors = [torch.zeros(300)]
         
-        print(f"Collecting representation for {n_most_freq} most freqwords...")
+        print(f"Collecting embeddings for {n_most_freq} most frequent words in Word2Vec vocabulary...")
         
         for w in tqdm(wv.index2entity):
             word = w.lower() 
@@ -117,7 +120,7 @@ class Vocabulary:
                         continue
             else:
                 break
-                
+        print("Done!")
         return freq_words, torch.stack(word_vectors)
     
     
@@ -136,7 +139,7 @@ class Vocabulary:
         """
         
         # build the vocabulary mapping from the training data
-        vocabulary = build_vocab_from_iterator(cls.yield_tokens(multi_train), min_freq=2)
+        vocabulary = build_vocab_from_iterator(cls.yield_tokens(data), min_freq=2)
         
         # if the pretrained model is provided extract n_most_frequent words
         if wv is not None:
