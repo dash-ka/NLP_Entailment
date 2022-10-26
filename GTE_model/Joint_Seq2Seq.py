@@ -191,10 +191,10 @@ def word_tokenizer(text):
 class Seq2Seq(nn.Module):
     
     """
-    Seq2Seq model.
-    It internally implements sentences embedding and forward pass.
-    The ``embed_sentence`` function extracts the embeddings from 2 embedding layers, 
-    the ``pretrained_embedding`` is a look_up table holding pretrained w2v vectors. It remains frezzed during training,
+    Seq2Seq model is a container class for encoder and decoder blocks.
+    It internally implements the sentence embedding and performs a forward pass.
+    The ``embed_sentence`` function extracts the embeddings from 2 embedding layers.
+    ``pretrained_embedding`` is a look_up table for pretrained w2v vectors. It remains freezed during training,
     while the ``trainable_embedding`` holds embeddings for vocabulary terms without a pretrained representation.
     The latter will be learned during training.
     
