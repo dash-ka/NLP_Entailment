@@ -379,9 +379,143 @@ class EntityEmbedding():
         return G, entity_embeddings, torch.stack(average_embedding)
 
 
+def build_graphs_and_attention(prem, hypo, attention_weights):
+    nlp_hypo = nlp(hypo)
+    nlp_prem = nlp(prem)
+    H_graph = generate_graph(nlp_hypo)
+    T_graph = generate_graph(nlp_prem )
+    attention = retrieve_attention(nlp_prem , nlp_hypo, attention_weights)
+    return T_graph, H_graph, attention
+
+
+def retrieve_attention(nlp_prem, nlp_hypo, attention_weights):
+    
+    idx_prem = [tok._.idx for tok in nlp_prem] 
+    idx_hypo = [tok._.idx for tok in nlp_hypo]
+    attention = defaultdict(lambda:defaultdict(float))
+    for i, h in enumerate(idx_hypo):
+        for j, p in enumerate(idx_prem):
+            attention[h][p] = attention_weights[i, j] 
+    return attention
+
+
+def attention_score(h, t, H_tree, T_tree, attention):       
+    individual_weights = np.array([attention[h][t_idx] for t_idx in T_tree.nodes[t]["idx_list"]])
+    return  np.sum(np.square(individual_weights)) / np.sum(individual_weights)
+
+
+def score(idx_h, idx_t, H_tree, T_tree):
+    
+    h = H_tree.nodes[idx_h]
+    t = T_tree.nodes[idx_t]
+    children_h = list(H_tree.successors(idx_h))
+    children_t = list(T_tree.successors(idx_t))
+    root = [n for n in T_tree if T_tree.nodes[n]["dep_label"] == "ROOT"][0]
+    predecessors_dict = nx.predecessor(T_tree, root)
+    parent = predecessors_dict[idx_t]
+    direct_parent = T_tree.nodes[parent[0]]["M"] if parent else "ROOT"
+    if parent:
+        if predecessors_dict[parent[0]]:
+            indirect_parent = T_tree.nodes[predecessors_dict[parent[0]][0]]["M"]
+        else:
+            indirect_parent = "ROOT"
+    else:
+        indirect_parent = "ROOT"
+    
+    common_features = (int(h["lemma"] == t["lemma"]) +
+                       int(h["pos"] == t["pos"]) + 
+                       int(h["lemma"] == t["lemma"])*int(h["pos"] == t["pos"])+
+                       int(h["parent"] == direct_parent) * int(h["dep_label"]==t["dep_label"]) + 
+                       int(h["parent"] in [direct_parent, indirect_parent]) * int(h["pos"]==t["pos"]) / 2 +
+                       int(h["parent"] in [direct_parent, indirect_parent]) * int(h["lemma"] == t["lemma"]) / 2 + 
+                       len(set(children_h).intersection({T_tree.nodes[child]["M"] for child in children_t}))*int(h["pos"] ==t["pos"])
+                       ) / (5 + len(children_h))
+    
+    return  common_features 
 
 
 
+class GraphMatch:
+    
+    def __init__(self, premise_graph, hypothesis_graph):
+
+        # dependency graphs
+        self.T_graph = premise_graph
+        self.H_graph = hypothesis_graph
+        
+        # derive tree traversal order
+        self.H_graph_traversal = top_down(self.H_graph)
+        self.T_graph_traversal = top_down(self.T_graph)
+        
+        # initialize the "match" attribute on nodes of the premise
+        for idx_t in self.T_graph_traversal:
+            self.T_graph.nodes[idx_t]["M"] = None
+            
+    def graph_match(self):
+        prev_mapping, self.mapping = [], []
+        for h in self.H_graph_traversal:
+            match_scores = np.array(
+                [score(h, t, self.H_graph, self.T_graph) for t in self.T_graph_traversal]
+            )
+            match_idx = self.T_graph_traversal[np.argmax(match_scores)]
+            self.mapping.append((self.H_graph.nodes[h]["lemma"], self.T_graph.nodes[match_idx]["lemma"]))
+            self.T_graph.nodes[match_idx]["M"] = h
+                
+        while prev_mapping != self.mapping :
+            prev_mapping = self.mapping
+            self.mapping, self.scores_array = [], []
+            for h in self.H_graph_traversal:
+                match_scores = np.array(
+                    [score(h, t, self.H_graph, self.T_graph) for t in self.T_graph_traversal]
+                )
+                self.scores_array.append(match_scores)
+                match_idx = self.T_graph_traversal[np.argmax(match_scores)]
+                self.mapping.append((self.H_graph.nodes[h]["lemma"], self.T_graph.nodes[match_idx]["lemma"]))
+                self.T_graph.nodes[match_idx]["M"] = h
+                
+        self.scores_array = np.array(self.scores_array)
+        array_scores = np.max(self.scores_array, axis = 1)
+        self.mapping = np.array(self.mapping)
+        self.mapping[array_scores==0] = ["NULL","NILL"]
+        self.mapping = list(map(tuple, self.mapping))
+                
+    def attention_match(self, attention):
+        self.attention_mapping, self.attention_scores_array = [], []
+        for h in self.H_graph_traversal:
+            match_scores = np.array(
+                [attention_score(h, t, self.H_graph, self.T_graph, attention) for t in self.T_graph_traversal]
+            )
+            self.attention_scores_array.append(match_scores)
+            match_idx = self.T_graph_traversal[np.argmax(match_scores)]
+            self.attention_mapping.append((self.H_graph.nodes[h]["lemma"], self.T_graph.nodes[match_idx]["lemma"]))
+            self.T_graph.nodes[match_idx]["Ma"] = h
+        self.attention_scores_array = np.array(self.attention_scores_array)
+        
+
+
+def classify_entailment(attention_match, graph_match, T_graph, H_graph):
+    
+    size_prem = T_graph.number_of_nodes()
+    size_hypo = H_graph.number_of_nodes()
+    non_trivial_match = {(node, mapped_node) for (node, mapped_node) in graph_match if node != mapped_node}
+    related_terms, residual_pairs, inference = set(), set(), set()
+    if non_trivial_match:
+        related_terms = non_trivial_match.intersection(attention_match)
+        residual_pairs = non_trivial_match.difference(related_terms) 
+        inference = {(node, mapped_node) for (node, mapped_node) in attention_match if node != mapped_node}\
+        .union(residual_pairs).difference(related_terms)
+        premise_coverage = (size_hypo - len(residual_pairs)) / size_prem
+    else:
+        premise_coverage = size_hypo / size_prem
+        
+    print("Semantically related terms:", related_terms)
+    print("Possible Inference:", inference.union(residual_pairs))
+    print("Estimate for syntactic subsumption:", round(1 - premise_coverage, 3))
+    print("Estimate for lexical semantics:", round(len(related_terms)/size_hypo, 3))
+    print("Estimate for high order inference", round(len(residual_pairs)/size_hypo, 3))
+
+
+    
 # EXAMPLE
 #
 # sequence = "The National Institute of Microbiology in Israel was established in 1797."
