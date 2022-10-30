@@ -1,5 +1,5 @@
 import numpy as np
-import re, spacy
+import re, spacy, torch
 import networkx as nx
 from collections import defaultdict
 from string import punctuation
@@ -365,8 +365,8 @@ class EntityEmbedding():
         input_dict = self.tokenizer(sequence, return_tensors="pt")
         hidden_states = self.model(**input_dict).encoder_last_hidden_state[0, 1:-1].detach()
         
+        self.check_spacy_alignment(tokens)
         nlp_sentence = nlp(sequence)
-        check_spacy_alignment(tokens)
         G = generate_graph(nlp_sentence)
         
         entity_embeddings = self.node_embeddings(G, tokens, hidden_states)
