@@ -346,6 +346,80 @@ def set_all_seeds(seed):
     torch.backends.cudnn.deterministic = True
     
     
+    
+    
+def collate_batch(batch, vocab):
+    """
+    Encode each pair of sentences and convert into torch.tensors;
+    record the corresponding lengths for both premise and hypothesis;
+    pad premise tensors to the max premise length in a batch;
+    pad hypothesis tensors to the max hypothesis length in a batch.
+    Args:
+    batch: a batch with premise-hypothesis pairs
+    vocab: Vocabulary object
+    
+    Returns: a dictionary 
+    padded_prem: tensor with size (batch_size, max_premise_len) 
+    padded_hypo: tensor with size (batch_size, 1 + max_hypothesis_len)
+    premise_lengths: tensor with size (batch_size)
+    hypothesis_lengths: tensor with size (batch_size)
+    
+    """
+    premise, hypothesis, prem_lengths, hypo_lengths = [],[],[],[]
+    
+    for prem, hypo in batch:
+        
+        encode_prem = vocab.sentence2tensor(prem) # indexed tensor + eos_token
+        encode_hypo = vocab.sentence2tensor(hypo) # indexed tensor + eos_token
+        premise.append(encode_prem)
+        hypothesis.append(encode_hypo)
+        
+        prem_lengths.append(encode_prem.size(0))
+        hypo_lengths.append(encode_hypo.size(0))
+        
+        
+    # padding sequences to max_sequence_length
+    padded_prem = nn.utils.rnn.pad_sequence(premise, batch_first = True)
+    padded_hypo = nn.utils.rnn.pad_sequence(hypothesis, batch_first = True)
+    
+    # prepend <sos> token to hypothesis sequences
+    sos_tensor =  torch.tensor([vocab.vocabulary["<sos>"]]).repeat(padded_hypo.size(0), 1)
+    padded_hypo = torch.cat((sos_tensor, padded_hypo), dim = -1)
+    
+    return {"premise": padded_prem,
+            "hypothesis": padded_hypo,
+            "premise_lengths": torch.tensor(prem_lengths),
+            "hypothesis_lengths": torch.tensor(hypo_lengths)
+           }
+
+
+
+
+def generate_batches(dataset, vocab,
+                     batch_size=32,
+                     collate_fn = collate_batch,
+                     shuffle=True,
+                     drop_last=True,
+                     device="cpu"):
+    """
+    A generator function which wraps the PyTorch DataLoader. 
+    Transfers all tensors on the correct device location.
+    """
+    dataloader = DataLoader(dataset=dataset, 
+                            batch_size=batch_size, 
+                            collate_fn = lambda batch:collate_batch(batch, vocab),
+                            shuffle=shuffle,
+                            drop_last=drop_last)
+    
+    for batch_dictionary in dataloader:
+        out_batch_dictionary = {}
+        for name, tensor in batch_dictionary.items():
+            out_batch_dictionary[name] = batch_dictionary[name].to(device)
+        yield out_batch_dictionary
+        
+        
+    
+    
 
 def train(model, vocab,
           train_data,
